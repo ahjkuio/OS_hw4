@@ -133,31 +133,66 @@ sys_dmesg(void)
 {
     uint64 buf_addr;
     struct proc *p = myproc();
+    int len;
 
     argaddr(0, &buf_addr);
 
+    // Проверяем, что buf_addr хороший адрес в пользовательском пространстве
+    if (buf_addr >= p->sz) {
+        printf("sys_dmesg: invalid buf_addr 0x%lx >= p->sz 0x%lx\n", buf_addr, p->sz);
+        return -1; // Плохой адрес
+    }
+
     acquire(&kmsgbuf.lock);
 
+    len = 0;
     if (kmsgbuf.begin <= kmsgbuf.end) {
+        len = kmsgbuf.end - kmsgbuf.begin;
+        printf("sys_dmesg: copying from begin %d to end %d, len %d\n", kmsgbuf.begin, kmsgbuf.end, len);
+        printf("sys_dmesg: buf_addr=0x%lx, len=%d, p->sz=0x%lx\n", buf_addr, len, p->sz);
         if(copyout(p->pagetable, buf_addr,
                    kmsgbuf.buf + kmsgbuf.begin,
-                   kmsgbuf.end - kmsgbuf.begin) < 0) {
+                   len) < 0) {
+            printf("sys_dmesg: copyout failed (1)\n");
             release(&kmsgbuf.lock);
             return -1;
         }
     } else {
+        len = MSGBUFLEN - kmsgbuf.begin + kmsgbuf.end;
+        printf("sys_dmesg: copying wrapped buffer, len %d\n", len);
+        printf("sys_dmesg: buf_addr=0x%lx, len=%d, p->sz=0x%lx\n", buf_addr, len, p->sz);
+
         if(copyout(p->pagetable, buf_addr,
                    kmsgbuf.buf + kmsgbuf.begin,
                    MSGBUFLEN - kmsgbuf.begin) < 0) {
+            printf("sys_dmesg: copyout failed (2)\n");
             release(&kmsgbuf.lock);
             return -1;
         }
         if(copyout(p->pagetable, buf_addr + (MSGBUFLEN - kmsgbuf.begin),
                    kmsgbuf.buf, kmsgbuf.end) < 0) {
+            printf("sys_dmesg: copyout failed (3)\n");
             release(&kmsgbuf.lock);
             return -1;
         }
     }
+
+    // Нулевая терминация
+    if (len < MSGBUFLEN) { // Убеждаемся, что есть место для '\0'
+        char zero = '\0';
+        printf("sys_dmesg: adding null terminator at buf_addr + len = 0x%lx\n", buf_addr + len);
+        if (copyout(p->pagetable, buf_addr + len, &zero, 1) < 0) {
+            printf("sys_dmesg: copyout failed (null terminator)\n");
+            release(&kmsgbuf.lock);
+            return -1;
+        }
+    } else {
+        // Буфер заполнен, не можем добавить '\0'
+        printf("sys_dmesg: buffer full, cannot add null terminator\n");
+        release(&kmsgbuf.lock);
+        return -1;
+    }
+
 
     release(&kmsgbuf.lock);
     return 0;

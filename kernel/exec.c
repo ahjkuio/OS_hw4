@@ -33,6 +33,16 @@ exec(char *path, char **argv)
 
   begin_op();
 
+
+  // добавим pr_msg
+  acquire(&p->lock);
+  int pid = p->pid;
+  release(&p->lock);
+  char* name = argv[0];
+  if (*name == '/') ++name;
+  pr_msg("exec: pid %d, name %s", pid, name);
+
+
   if((ip = namei(path)) == 0){
     end_op();
     return -1;

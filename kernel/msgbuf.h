@@ -1,8 +1,6 @@
 #ifndef _MSG_BUFFER_H_
 #define _MSG_BUFFER_H_
 
-#define MSGBUFLEN (4*PGSIZE)  // 4 страницы для буфера
-
 typedef struct msgbuf {
     struct spinlock lock;     // Спин-блокировка для защиты буфера
     char buf[MSGBUFLEN];      // Буфер для сообщений

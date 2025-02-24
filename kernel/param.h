@@ -12,6 +12,6 @@
 #define FSSIZE       2000  // size of file system in blocks
 #define MAXPATH      128   // maximum file path name
 #define USERSTACK    1     // user stack pages
+#define PGSIZE 4096 					  // Размер страницы
 #define MSGBUF_PAGES 4                    // Количество страниц для буфера сообщений
-#define MSGBUF_SIZE (MSGBUF_PAGES*PGSIZE) // Размер буфера в байтах
-
+#define MSGBUFLEN (MSGBUF_PAGES*PGSIZE)   // Размер буфера в байтах
